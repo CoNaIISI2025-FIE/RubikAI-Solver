@@ -1,0 +1,21 @@
+# Ignorar compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Archivos temporales
+*.log
+*.tmp
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Datos grandes
+data/*.csv
+data/*.npz
+data/*.pkl
