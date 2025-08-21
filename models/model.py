@@ -51,10 +51,12 @@ def on_click(event):
         if dist <= RADIO:
             print(f'Clic en círculo {i}, rotando colores...')
             circulos[i]['colores'] = circulos[i]['colores'][-1:] + circulos[i]['colores'][:-1]
+            circulos[i]['puntos'] = circulos[i]['puntos'][-1:] + circulos[i]['puntos'][:-1]
             dibujar()
             break
 
-fig.canvas.mpl_connect('button_press_event', on_click)
 
-dibujar()
-plt.show()
+if __name__ == "__main__":
+    fig.canvas.mpl_connect('button_press_event', on_click)
+    dibujar()
+    plt.show()
