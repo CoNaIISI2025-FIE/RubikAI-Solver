@@ -1,5 +1,9 @@
-numpy>=1.24.0
-torch>=2.0.0
-tqdm>=4.65.0
-pycuber>=0.2.2
-kociemba>=1.2.1
+numpy
+torch
+kociemba
+pycuber
+tqdm
+sympy
+networkx
+pyglet
+

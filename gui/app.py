@@ -5,36 +5,33 @@ import pycuber as pc
 
 from solver.kociemba_solver import Kociemba3x3Solver
 from solver.hybrid_solver import HybridSolver
+from gui.viewer3d import show_cube_3d  # nuevo
 
 SUPPORTED = ["3x3", "4x4", "5x5", "Pyraminx", "Megaminx"]
 
-# Colores para dibujar el net (podés ajustarlos)
 FACE_COLOR = {
-    "U": "#FFFFFF",  # blanco
-    "R": "#FF4D4D",  # rojo
-    "F": "#00CC66",  # verde
-    "D": "#FFFF33",  # amarillo
-    "L": "#FF9900",  # naranja
-    "B": "#3399FF",  # azul
+    "U": "#FFFFFF",
+    "R": "#FF4D4D",
+    "F": "#00CC66",
+    "D": "#FFFF33",
+    "L": "#FF9900",
+    "B": "#3399FF",
 }
+ORDER_DRAW = "U L F R B D"
+ORDER_FACELETS = "URFDLB"
+FACE_OFFSETS = {"U": (3,0), "L": (0,3), "F": (3,3), "R": (6,3), "B": (9,3), "D": (3,6)}
+CELL, PAD = 26, 2
 
-# Orden y disposición del net (U al tope, luego fila L F R B, y D abajo)
-ORDER = "U L F R B D"  # para dibujar
-# offsets por cara en la grilla (col, fila) de bloques 3x3
-FACE_OFFSETS = {
-    "U": (3, 0),
-    "L": (0, 3),
-    "F": (3, 3),
-    "R": (6, 3),
-    "B": (9, 3),
-    "D": (3, 6),
-}
+def parse_moves(seq): return [p for p in seq.replace(",", " ").split() if p]
+def invert_moves(moves):
+    out=[]
+    for m in moves[::-1]:
+        if m.endswith("2"): out.append(m)
+        elif m.endswith("'"): out.append(m[:-1])
+        else: out.append(m+"'")
+    return out
 
-CELL = 24   # tamaño de cada sticker (px)
-PAD  = 2    # separación entre stickers (px)
-
-def _face_matrix(cube, f):
-    """Devuelve la matriz 3x3 de colores de la cara f (soporta variantes de pycuber)."""
+def _mat_py(cube, f):
     faces = getattr(cube, "faces", None)
     if faces is not None:
         face = faces[f]
@@ -43,206 +40,238 @@ def _face_matrix(cube, f):
     if gf is not None:
         face = gf(f)
         return [[str(face[r][c]) for c in range(3)] for r in range(3)]
-    raise RuntimeError("No se pudo leer la cara del cubo con pycuber.")
+    raise RuntimeError("pycuber no permite leer la cara.")
 
-def _color_to_letter_map(cube):
-    """Mapea color del centro -> letra de cara (U,R,F,D,L,B) para un cubo dado."""
-    # Obtenemos letras de cara en el alfabeto de pycuber: U,R,F,D,L,B
-    # Para cada cara, tomamos el color del centro, y lo asociamos a su letra
-    mapping = {}
-    for f in "URFDLB":
-        mat = _face_matrix(cube, f)
-        center = mat[1][1]
-        mapping[center] = f
-    return mapping
-
-def _to_face_letter(color_char, color_map):
-    """Convierte un char de color de pycuber (ej 'w','y','g','r','b','o') a letra de cara mediante el mapping."""
-    # color_char ya es un string (p.ej 'w'), buscamos a qué letra corresponde en este cubo
-    return color_map[color_char]
-
-def draw_cube(canvas: tk.Canvas, cube: pc.Cube):
-    """
-    Dibuja el cubo como un net 2D en un Canvas (solo 3x3).
-    """
+def draw_state(canvas, letters):
     canvas.delete("all")
-    # Mapeo color->letra (para pintar por letra de centro)
-    color_map = _color_to_letter_map(cube)
-
-    for face_letter in ORDER.split():
-        off_col, off_row = FACE_OFFSETS[face_letter]
-        mat = _face_matrix(cube, face_letter)
+    for face in ORDER_DRAW.split():
+        oc, orow = FACE_OFFSETS[face]
+        mat = letters[face]
         for r in range(3):
             for c in range(3):
-                # Convertimos color a letra (según el centro)
-                face_of_sticker = _to_face_letter(mat[r][c], color_map)
-                fill = FACE_COLOR.get(face_of_sticker, "#999999")
+                fill = FACE_COLOR.get(mat[r][c], "#999")
+                x0 = (oc+c)*(CELL+PAD); y0 = (orow+r)*(CELL+PAD)
+                x1 = x0+CELL; y1 = y0+CELL
+                canvas.create_rectangle(x0,y0,x1,y1, fill=fill, outline="#333", width=2)
 
-                x0 = (off_col + c) * (CELL + PAD)
-                y0 = (off_row + r) * (CELL + PAD)
-                x1 = x0 + CELL
-                y1 = y0 + CELL
+def solved_letters():
+    return {f:[[f]*3 for _ in range(3)] for f in ORDER_FACELETS}
 
-                canvas.create_rectangle(x0, y0, x1, y1, fill=fill, outline="#333333", width=2)
+def pycuber_to_letters(cube):
+    cmap={}
+    for f in ORDER_FACELETS:
+        m=_mat_py(cube,f); cmap[m[1][1]]=f
+    letters={}
+    for f in ORDER_FACELETS:
+        m=_mat_py(cube,f)
+        letters[f]=[[cmap[m[r][c]] for c in range(3)] for r in range(3)]
+    return letters
 
-def parse_moves(seq: str):
-    """
-    Tokeniza secuencia tipo: "U R2 F U' L2 D" -> ["U","R2","F","U'","L2","D"]
-    """
-    parts = [p for p in seq.replace(",", " ").split() if p]
-    return parts
+def letters_to_facelets(letters):
+    s=[]
+    for f in ORDER_FACELETS:
+        m=letters[f]
+        for r in range(3):
+            for c in range(3): s.append(m[r][c])
+    return "".join(s)
+
+def hit_test(x,y):
+    for face in ORDER_DRAW.split():
+        oc, orow = FACE_OFFSETS[face]
+        for r in range(3):
+            for c in range(3):
+                x0=(oc+c)*(CELL+PAD); y0=(orow+r)*(CELL+PAD)
+                x1=x0+CELL; y1=y0+CELL
+                if x0<=x<=x1 and y0<=y<=y1: return face,r,c
+    return None
 
 def launch_app():
     root = tk.Tk()
     root.title("IA Rubik Solver")
-    # Hacemos espacio horizontal para el canvas del net
-    root.geometry("900x480")
+    root.geometry("1000x560")
 
-    main = ttk.Frame(root, padding=10)
-    main.pack(fill="both", expand=True)
+    main = ttk.Frame(root, padding=10); main.pack(fill="both", expand=True)
 
-    # ---- Panel izquierdo: controles y salida de texto
-    left = ttk.Frame(main, padding=5)
-    left.pack(side="left", fill="y")
+    # ---- Panel izquierdo ----
+    left = ttk.Frame(main, padding=5); left.pack(side="left", fill="y")
 
     ttk.Label(left, text="Tipo de cubo:").grid(row=0, column=0, sticky="w")
     cube_type = tk.StringVar(value="3x3")
-    cmb = ttk.Combobox(left, textvariable=cube_type, values=SUPPORTED, state="readonly", width=18)
-    cmb.grid(row=0, column=1, sticky="w", padx=5)
+    ttk.Combobox(left, textvariable=cube_type, values=SUPPORTED, state="readonly", width=14)\
+        .grid(row=0, column=1, sticky="w", padx=5)
 
-    ttk.Label(left, text="Scramble:").grid(row=1, column=0, sticky="w", pady=(6, 0))
+    ttk.Label(left, text="Scramble:").grid(row=1, column=0, sticky="w")
     scramble_var = tk.StringVar(value="U R2 F U' L2 D")
-    ent = ttk.Entry(left, textvariable=scramble_var, width=32)
-    ent.grid(row=1, column=1, sticky="w", padx=5, pady=(6, 0))
+    ttk.Entry(left, textvariable=scramble_var, width=28)\
+        .grid(row=1, column=1, sticky="w", padx=5, pady=4)
 
-    out = tk.Text(left, height=20, width=40, state="disabled")
-    out.grid(row=3, column=0, columnspan=2, pady=8)
+    edit_mode = tk.BooleanVar(value=False)
+    ttk.Checkbutton(left, text="Modo edición (pintar)", variable=edit_mode)\
+        .grid(row=2, column=0, columnspan=2, sticky="w", pady=(6,2))
 
+    paint_letter = tk.StringVar(value="U")
+    ttk.Label(left, text="Pintar con:").grid(row=3, column=0, sticky="w", pady=(4,0))
+    pal = ttk.Frame(left); pal.grid(row=3, column=1, sticky="w")
+    for i,f in enumerate(ORDER_FACELETS):
+        tk.Radiobutton(pal, text=f, value=f, variable=paint_letter,
+                       bg=FACE_COLOR[f], fg="black", indicatoron=False,
+                       width=3, relief="raised").grid(row=0, column=i, padx=2)
+
+    out = tk.Text(left, height=18, width=44, state="disabled")
+    out.grid(row=6, column=0, columnspan=2, pady=8)
     def log(msg):
-        out.configure(state="normal")
-        out.insert("end", msg + "\n")
-        out.see("end")
-        out.configure(state="disabled")
+        out.config(state="normal"); out.insert("end", msg+"\n"); out.see("end"); out.config(state="disabled")
 
-    # ---- Panel derecho: Canvas (visualización del cubo)
-    right = ttk.Frame(main, padding=5)
-    right.pack(side="left", fill="both", expand=True)
-
-    # Net ocupa (12 columnas x 9 filas) de celdas (ver FACE_OFFSETS).
-    canvas_w = (12 * (CELL + PAD))
-    canvas_h = (9 * (CELL + PAD))
+    # ---- Canvas derecha ----
+    right = ttk.Frame(main, padding=5); right.pack(side="left", fill="both", expand=True)
+    canvas_w=(12*(CELL+PAD)); canvas_h=(9*(CELL+PAD))
     cvs = tk.Canvas(right, width=canvas_w, height=canvas_h, bg="#1e1e1e", highlightthickness=0)
     cvs.pack(fill="both", expand=True)
 
-    # Estado del cubo para la animación (3x3)
+    # ---- Estado / animación ----
+    manual = solved_letters()
     cube = pc.Cube()
-    anim_moves = []
-    anim_idx = 0
-    anim_speed_ms = 350  # velocidad de animación (ms entre movimientos)
+    anim_moves=[]; anim_idx=0; anim_speed_ms=300
 
-    def reset_cube():
-        nonlocal cube, anim_moves, anim_idx
-        cube = pc.Cube()
-        anim_moves = []
-        anim_idx = 0
-        draw_cube(cvs, cube)
+    # historial por color (para límite 9 y “despintar el último”)
+    paint_history = {f: [] for f in ORDER_FACELETS}
 
-    reset_cube()  # dibujar resuelto al inicio
+    def refresh():
+        if edit_mode.get(): draw_state(cvs, manual)
+        else: draw_state(cvs, pycuber_to_letters(cube))
+
+    def count_color(letter):
+        return sum(1 for f in ORDER_FACELETS for r in range(3) for c in range(3) if manual[f][r][c]==letter)
+
+    def remove_from_history(letter, pos):
+        if pos in paint_history[letter]: paint_history[letter].remove(pos)
+
+    def set_sticker(face,r,c,new_letter):
+        old = manual[face][r][c]
+        if old == new_letter: return
+        remove_from_history(old, (face,r,c))
+
+        if count_color(new_letter) >= 9:
+            if paint_history[new_letter]:
+                lf,lr,lc = paint_history[new_letter].pop()
+                manual[lf][lr][lc] = lf  # vuelve a letra base de su cara
+            else:
+                return
+        manual[face][r][c]=new_letter
+        paint_history[new_letter].append((face,r,c))
+
+    def reset_all():
+        nonlocal manual,cube,anim_moves,anim_idx
+        manual=solved_letters(); cube=pc.Cube(); anim_moves=[]; anim_idx=0
+        for k in paint_history: paint_history[k].clear()
+        refresh()
+
+    def on_click(ev):
+        if not edit_mode.get(): return
+        hit=hit_test(ev.x, ev.y)
+        if not hit: return
+        f,r,c=hit
+        set_sticker(f,r,c,paint_letter.get())
+        draw_state(cvs, manual)
+
+    cvs.bind("<Button-1>", on_click)
 
     def apply_scramble():
-        """Aplica el scramble actual al cubo y lo dibuja."""
+        kind=cube_type.get()
+        if kind!="3x3":
+            log(f"Solver híbrido para {kind} aún no implementado.\nListo para integrar DL y heurísticas.")
+            return
         nonlocal cube
         try:
-            cube = pc.Cube()
-            seq = pc.Formula(scramble_var.get().strip())
-            cube(seq)
-            draw_cube(cvs, cube)
-            log("[3x3] Scramble aplicado.")
+            cube=pc.Cube(); cube(pc.Formula(scramble_var.get().strip()))
+            refresh(); log("[3x3] Scramble aplicado.")
         except Exception as e:
-            messagebox.showerror("Error", f"Scramble inválido: {e}")
+            messagebox.showerror("Scramble", str(e))
+
+    def facelets_current():
+        if edit_mode.get():
+            # validar 9 por color
+            counts={f:0 for f in ORDER_FACELETS}
+            for f in ORDER_FACELETS:
+                for r in range(3):
+                    for c in range(3):
+                        counts[manual[f][r][c]]+=1
+            if any(v!=9 for v in counts.values()):
+                raise ValueError(f"Estado inválido (colores != 9): {counts}")
+            return letters_to_facelets(manual)
+        else:
+            return letters_to_facelets(pycuber_to_letters(cube))
 
     def solve():
-        """Resuelve (3x3 con kociemba) y muestra la solución."""
         nonlocal anim_moves, anim_idx, cube
-
-        out.configure(state="normal")
-        out.delete("1.0", "end")
-        out.configure(state="disabled")
-
-        kind = cube_type.get()
-        scr = scramble_var.get().strip()
-        if not scr:
-            messagebox.showwarning("Scramble vacío", "Ingresá un scramble (ej: U R U' R').")
-            return
-
-        if kind != "3x3":
-            msg = HybridSolver(kind).solve(scr)
-            log(msg)
-            return
-
+        out.config(state="normal"); out.delete("1.0","end"); out.config(state="disabled")
+        kind=cube_type.get()
+        if kind!="3x3":
+            log(HybridSolver(kind).solve(scramble_var.get().strip())); return
         try:
-            # Reset + aplicar scramble (para que lo que se ve coincida)
-            cube = pc.Cube()
-            cube(pc.Formula(scr))
-            draw_cube(cvs, cube)
+            facelets=facelets_current()
+            solver=Kociemba3x3Solver()
+            sol=solver.solve_from_facelets(facelets)
+            moves=parse_moves(sol); log(f"[3x3] Solución: {sol}"); log(f"Movimientos: {len(moves)}")
 
-            # Resolver
-            solver = Kociemba3x3Solver()
-            sol = solver.solve_from_scramble(scr)
-            log(f"[3x3] Scramble: {scr}")
-            log(f"[3x3] Solución: {sol}")
-            log(f"Movimientos: {len(sol.split())}")
-
-            # Preparar animación
-            anim_moves = parse_moves(sol)
-            anim_idx = 0
+            # preparar animación: partir del estado scrambled (inverso de moves)
+            inv=invert_moves(moves)
+            cube=pc.Cube()
+            if inv: cube(pc.Formula(" ".join(inv)))
+            refresh()
+            anim_moves[:]=moves; anim_idx=0
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Resolver", str(e))
 
     def step_animation():
-        """Aplica un movimiento de la solución y redibuja."""
-        nonlocal anim_idx, cube
-        if anim_idx >= len(anim_moves):
-            return  # terminó
-        mv = anim_moves[anim_idx]
-        try:
-            # Aplicamos la notación directamente con PyCuber
-            cube(pc.Formula(mv))
-            draw_cube(cvs, cube)
+        nonlocal anim_idx,cube
+        if anim_idx>=len(anim_moves): return
+        mv=anim_moves[anim_idx]
+        try: cube(pc.Formula(mv)); refresh()
         except Exception as e:
-            messagebox.showerror("Animación", f"Movimiento inválido: {mv}\n{e}")
-            return
-        anim_idx += 1
-        # programar el siguiente paso
-        if anim_idx < len(anim_moves):
-            root.after(anim_speed_ms, step_animation)
+            messagebox.showerror("Animación", f"Movimiento inválido: {mv}\n{e}"); return
+        anim_idx+=1
+        if anim_idx<len(anim_moves): root.after(anim_speed_ms, step_animation)
 
     def animate_solution():
-        """Lanza la animación completa (si hay solución calculada)."""
         if not anim_moves:
-            messagebox.showinfo("Animación", "Primero tocá 'Resolver' para obtener la solución.")
-            return
-        # Reiniciar al estado scrambled para ver la animación desde el inicio:
+            messagebox.showinfo("Animación","Primero tocá 'Resolver'."); return
+        nonlocal anim_idx,cube
+        inv=invert_moves(anim_moves); cube=pc.Cube()
+        if inv: cube(pc.Formula(" ".join(inv)))
+        refresh(); anim_idx=0; root.after(anim_speed_ms, step_animation)
+
+    def open_3d():
+        """Abrir el viewer 3D con el estado 'scrambled' y la solución (si existe)."""
         try:
-            cube_reset = pc.Cube()
-            cube_reset(pc.Formula(scramble_var.get().strip()))
-            # reemplazamos el cubo visual por el scrambled
-            nonlocal cube, anim_idx
-            cube = cube_reset
-            anim_idx = 0
-            draw_cube(cvs, cube)
-            root.after(anim_speed_ms, step_animation)
+            # estado a mostrar en 3D: el “scrambled” actual (depende del modo)
+            if edit_mode.get():
+                state_letters = manual
+                # si hay solución: moves = solución; el viewer reproduce con ESPACIO
+                moves = anim_moves[:] if anim_moves else []
+            else:
+                state_letters = pycuber_to_letters(cube)
+                moves = anim_moves[:] if anim_moves else []
+            show_cube_3d(state_letters, moves=moves, speed=0.5)
         except Exception as e:
-            messagebox.showerror("Animación", f"No pude reiniciar al scramble: {e}")
+            messagebox.showerror("3D", str(e))
 
     # Botones
-    row = 2
-    ttk.Button(left, text="Aplicar Scramble", command=apply_scramble).grid(row=row, column=0, pady=6, sticky="w")
-    ttk.Button(left, text="Resolver", command=solve).grid(row=row, column=1, pady=6, sticky="w")
-    row += 1
-    ttk.Button(left, text="Animar Solución", command=animate_solution).grid(row=row, column=0, pady=6, sticky="w")
-    ttk.Button(left, text="Reiniciar Cubo", command=reset_cube).grid(row=row, column=1, pady=6, sticky="w")
-    row += 1
-    ttk.Button(left, text="Salir", command=root.destroy).grid(row=row, column=0, columnspan=2, pady=6)
+    ttk.Button(left, text="Aplicar Scramble", command=apply_scramble)\
+        .grid(row=4, column=0, pady=6, sticky="w")
+    ttk.Button(left, text="Resolver", command=solve)\
+        .grid(row=4, column=1, pady=6, sticky="w")
 
+    ttk.Button(left, text="Animar solución", command=animate_solution)\
+        .grid(row=5, column=0, pady=6, sticky="w")
+    ttk.Button(left, text="Siguiente paso", command=step_animation)\
+        .grid(row=5, column=1, pady=6, sticky="w")
+
+    ttk.Button(left, text="Ver en 3D (ESPACIO = play)", command=open_3d)\
+        .grid(row=7, column=0, columnspan=2, pady=6)
+
+    ttk.Button(left, text="Reiniciar cubo", command=reset_all)\
+        .grid(row=8, column=0, columnspan=2, pady=6)
+
+    refresh()
     root.mainloop()
