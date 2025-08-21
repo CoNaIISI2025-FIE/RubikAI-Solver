@@ -56,7 +56,12 @@ def on_click(event):
             break
 
 
-if __name__ == "__main__":
+def run():
+    """Initialize the interactive plot and display it."""
     fig.canvas.mpl_connect('button_press_event', on_click)
     dibujar()
     plt.show()
+
+
+if __name__ == "__main__":
+    run()
