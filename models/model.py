@@ -1,5 +1,14 @@
+"""Simple visualisation of coloured points on circles.
+
+This module was originally a quick experiment and therefore performed the
+colour rotation inline using list slicing. To make the behaviour easier to
+test and reuse, the rotation logic now lives in :func:`utils.helpers.rotate_colors`.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+from utils.helpers import rotate_colors
 
 NUM_CIRCULOS = 2
 PUNTOS_POR_CIRCULO = 6
@@ -50,7 +59,7 @@ def on_click(event):
         dist = np.hypot(click_x - cx, click_y - cy)
         if dist <= RADIO:
             print(f'Clic en círculo {i}, rotando colores...')
-            circulos[i]['colores'] = circulos[i]['colores'][-1:] + circulos[i]['colores'][:-1]
+            circulos[i]['colores'] = rotate_colors(circulos[i]['colores'])
             dibujar()
             break
 
