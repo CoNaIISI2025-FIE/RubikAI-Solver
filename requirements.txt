@@ -6,4 +6,5 @@ tqdm
 sympy
 networkx
 pyglet
-
+PyOpenGL
+PyOpenGL_accelerate
