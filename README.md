@@ -59,14 +59,14 @@ ia/
 
 **SSH (recomendado)**
 ```bash
-git clone git@github.com:TPIARUBIK/ia.git
-cd ia
+git clone git@github.com:CoNaIISI2025-FIE/RubikAI-Solver.git
+cd RubikAI-Solver
 ```
 
 **HTTPS**
 ```bash
-git clone https://github.com/TPIARUBIK/ia.git
-cd ia
+git clone https://github.com/CoNaIISI2025-FIE/RubikAI-Solver.git
+cd RubikAI-Solver
 ```
 
 ### 2) Crear y activar entorno virtual
@@ -148,7 +148,7 @@ pytest -q      # si añadís pytest al requirements
 
 ## 👥 Autores
 
-Equipo **TPIARUBIK** – Ingeniería en Informática (UNDEF).
+Equipo **TPIARUBIK** – Ingeniería en Informática (FIE - UNDEF).
 
 ---
 
