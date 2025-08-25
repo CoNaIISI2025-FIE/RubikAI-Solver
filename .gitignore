@@ -19,3 +19,5 @@ venv/
 data/*.csv
 data/*.npz
 data/*.pkl
+
+.idea
