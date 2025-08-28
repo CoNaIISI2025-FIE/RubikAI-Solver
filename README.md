@@ -4,7 +4,7 @@ Este proyecto implementa una combinación de **Deep Learning** y **heurísticas*
 Actualmente incluye un *baseline* funcional para **3×3** mediante el algoritmo de **Kociemba**, una **GUI** con Tkinter y
 ganchos (hooks) listos para integrar modelos en **PyTorch** (policy network / RL) y soportar otros cubos (4×4, 5×5, Pyraminx, Megaminx).
 
-> Proyecto académico – Facultad de Ingeniería del Ejército (UNDEF).
+.
 
 ---
 
@@ -143,12 +143,6 @@ pytest -q      # si añadís pytest al requirements
 - DQN/PPO para priorizar movimientos (policy/value)
 - **HybridSolver**: Beam Search/MCTS con prior de la policy
 - Soporte completo 4×4/5×5/Pyraminx/Megaminx
-
----
-
-## 👥 Autores
-
-Equipo **TPIARUBIK** – Ingeniería en Informática (FIE - UNDEF).
 
 ---
 
