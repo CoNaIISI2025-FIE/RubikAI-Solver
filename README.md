@@ -58,13 +58,13 @@ ia/
 
 **SSH (recomendado)**
 ```bash
-git clone git@github.com:CoNaIISI2025-FIE/RubikAI-Solver.git
+git clone git@github.com:CoNaIISI2025/RubikAI-Solver.git
 cd RubikAI-Solver
 ```
 
 **HTTPS**
 ```bash
-git clone https://github.com/CoNaIISI2025-FIE/RubikAI-Solver.git
+git clone https://github.com/CoNaIISI2025/RubikAI-Solver.git
 cd RubikAI-Solver
 ```
 
