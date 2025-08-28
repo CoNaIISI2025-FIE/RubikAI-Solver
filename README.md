@@ -4,7 +4,6 @@ Este proyecto implementa una combinación de **Deep Learning** y **heurísticas*
 Actualmente incluye un *baseline* funcional para **3×3** mediante el algoritmo de **Kociemba**, una **GUI** con Tkinter y
 ganchos (hooks) listos para integrar modelos en **PyTorch** (policy network / RL) y soportar otros cubos (4×4, 5×5, Pyraminx, Megaminx).
 
-.
 
 ---
 
